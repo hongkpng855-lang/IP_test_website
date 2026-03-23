@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>訪問者追蹤系統</title>
+    <title>訪問者追蹤系統 - Firebase版</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -46,37 +49,20 @@
             font-size: 16px;
             margin-bottom: 10px;
         }
-        #visitors-log, #click-log {
-            max-height: 300px;
+        #visitors-log {
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid #ddd;
             padding: 10px;
             background-color: #f9f9f9;
             border-radius: 4px;
         }
-        .visitor-item, .click-item {
+        .visitor-item {
             padding: 8px 0;
             border-bottom: 1px solid #eee;
         }
-        .visitor-item:last-child, .click-item:last-child {
+        .visitor-item:last-child {
             border-bottom: none;
-        }
-        .interactive-area {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .interactive-item {
-            background-color: #e9ecef;
-            padding: 20px;
-            border-radius: 4px;
-            text-align: center;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .interactive-item:hover {
-            background-color: #dee2e6;
         }
         button {
             background-color: #4a76a8;
@@ -108,32 +94,6 @@
             background-color: #17a2b8;
             color: white;
         }
-        .tab-container {
-            display: flex;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 15px;
-        }
-        .tab {
-            padding: 10px 15px;
-            cursor: pointer;
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
-            margin-right: 5px;
-        }
-        .tab.active {
-            background-color: white;
-            border-bottom: 1px solid white;
-            margin-bottom: -1px;
-            font-weight: bold;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
         .stats-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -157,12 +117,18 @@
             font-size: 14px;
             color: #666;
         }
+        #map-container {
+            height: 300px;
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>訪問者追蹤系統</h1>
-        <p>自動記錄所有訪問者的IP和點擊行為</p>
+        <p>使用Firebase記錄所有訪問者的IP信息</p>
     </header>
 
     <div class="container">
@@ -173,137 +139,62 @@
         </div>
 
         <div class="card">
-            <div class="tab-container">
-                <div class="tab active" data-tab="visitors">訪問者日誌</div>
-                <div class="tab" data-tab="stats">統計數據</div>
-            </div>
-            
-            <div class="tab-content active" id="visitors-tab">
-                <div id="visitors-log">
-                    <p>載入訪問記錄中...</p>
+            <h2>訪問者統計</h2>
+            <div class="stats-container">
+                <div class="stat-box">
+                    <div class="stat-label">總訪問次數</div>
+                    <div class="stat-value" id="total-visits">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">獨立訪客</div>
+                    <div class="stat-value" id="unique-visitors">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">今日訪問</div>
+                    <div class="stat-value" id="today-visits">0</div>
                 </div>
             </div>
-            
-            <div class="tab-content" id="stats-tab">
-                <div class="stats-container">
-                    <div class="stat-box">
-                        <div class="stat-label">總訪問次數</div>
-                        <div class="stat-value" id="total-visits">0</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">獨立訪客</div>
-                        <div class="stat-value" id="unique-visitors">0</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">今日訪問</div>
-                        <div class="stat-value" id="today-visits">0</div>
-                    </div>
-                </div>
-                <div id="stats-details">
-                    <p>更多統計數據將在這裡顯示...</p>
-                </div>
-            </div>
-            
-            <button id="clear-visits-log">清除訪問記錄</button>
-            <button id="export-data">導出數據</button>
+            <button id="refresh-data">刷新數據</button>
+            <button id="clear-data">清除數據</button>
         </div>
     </div>
 
     <div class="card">
-        <h2>點擊追蹤</h2>
-        <div id="click-log">
-            <p>您的點擊記錄將顯示在這裡</p>
-        </div>
-        <button id="clear-click-log">清除點擊記錄</button>
-    </div>
-
-    <div class="card">
-        <h2>互動區域</h2>
-        <p>點擊以下元素來測試點擊追蹤功能：</p>
-        
-        <div class="interactive-area">
-            <div class="interactive-item" id="item1">項目 1</div>
-            <div class="interactive-item" id="item2">項目 2</div>
-            <div class="interactive-item" id="item3">項目 3</div>
-            <div class="interactive-item" id="item4">項目 4</div>
+        <h2>所有訪問者記錄</h2>
+        <div id="visitors-log">
+            <p>載入訪問記錄中...</p>
         </div>
     </div>
 
     <script>
-        // 存儲訪問者和點擊數據
-        let visitorsLog = [];
-        let clickLog = [];
-        let currentVisitor = {};
+        // Firebase配置 - 請替換為您自己的配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyBCqFqL-dZ9SyVDaSopSiuPkPb3RLeVc5A",
+            authDomain: "iptrackwebsite.firebaseapp.com",
+            projectId: "iptrackwebsite",
+            storageBucket: "iptrackwebsite.firebasestorage.app",
+            messagingSenderId: "755918103831",
+            appId: "1:755918103831:web:5b94cc74f4fbfc808f8352",
+            databaseURL: "https://iptrackwebsite-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+
+        // 初始化Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const visitorsRef = database.ref('visitors');
         
-        // 初始化
+        // 當頁面加載時執行
         document.addEventListener('DOMContentLoaded', async function() {
-            // 從本地存儲加載數據
-            loadData();
-            
-            // 獲取並記錄當前訪問者的IP信息
+            // 獲取當前訪問者的IP信息
             await getCurrentVisitorInfo();
             
-            // 更新統計數據
-            updateStats();
+            // 載入所有訪問者數據
+            loadVisitorsData();
             
-            // 添加全局點擊事件監聽器
-            document.addEventListener('click', trackClick);
-            
-            // 為按鈕和標籤添加事件監聽器
-            document.getElementById('clear-visits-log').addEventListener('click', clearVisitsLog);
-            document.getElementById('clear-click-log').addEventListener('click', clearClickLog);
-            document.getElementById('export-data').addEventListener('click', exportData);
-            
-            // 標籤切換功能
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabId = tab.getAttribute('data-tab');
-                    
-                    // 更新標籤狀態
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    
-                    // 更新內容區域
-                    document.querySelectorAll('.tab-content').forEach(content => {
-                        content.classList.remove('active');
-                    });
-                    document.getElementById(`${tabId}-tab`).classList.add('active');
-                });
-            });
+            // 為按鈕添加事件監聽器
+            document.getElementById('refresh-data').addEventListener('click', loadVisitorsData);
+            document.getElementById('clear-data').addEventListener('click', clearAllData);
         });
-        
-        // 從本地存儲加載數據
-        function loadData() {
-            try {
-                const storedVisitors = localStorage.getItem('visitorsLog');
-                const storedClicks = localStorage.getItem('clickLog');
-                
-                if (storedVisitors) {
-                    visitorsLog = JSON.parse(storedVisitors);
-                }
-                
-                if (storedClicks) {
-                    clickLog = JSON.parse(storedClicks);
-                }
-                
-                // 顯示加載的數據
-                displayVisitorsLog();
-                updateClickLog();
-            } catch (error) {
-                console.error('Error loading data from localStorage:', error);
-            }
-        }
-        
-        // 保存數據到本地存儲
-        function saveData() {
-            try {
-                localStorage.setItem('visitorsLog', JSON.stringify(visitorsLog));
-                localStorage.setItem('clickLog', JSON.stringify(clickLog));
-            } catch (error) {
-                console.error('Error saving data to localStorage:', error);
-            }
-        }
         
         // 獲取當前訪問者的IP信息
         async function getCurrentVisitorInfo() {
@@ -316,40 +207,44 @@
                 const geoResponse = await fetch(`https://ipapi.co/${data.ip}/json/`);
                 const geoData = await geoResponse.json();
                 
-                currentVisitor = {
+                const visitorInfo = {
                     ip: data.ip,
                     city: geoData.city || 'Unknown',
                     region: geoData.region || 'Unknown',
                     country: geoData.country_name || 'Unknown',
                     isp: geoData.org || 'Unknown',
-                    timestamp: new Date().toISOString(),
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
                     userAgent: navigator.userAgent,
                     language: navigator.language || 'Unknown',
                     screenSize: `${window.screen.width}x${window.screen.height}`,
-                    referrer: document.referrer || 'Direct'
+                    referrer: document.referrer || 'Direct',
+                    latitude: geoData.latitude,
+                    longitude: geoData.longitude
                 };
                 
-                // 檢查是否為新訪問者
-                const isNewVisitor = !visitorsLog.some(visitor => visitor.ip === currentVisitor.ip);
-                const visitorStatus = isNewVisitor ? '新訪客' : '回訪者';
-                const statusClass = isNewVisitor ? 'status-new' : 'status-returning';
-                
-                // 更新UI
+                // 更新UI顯示當前訪問者信息
                 document.getElementById('current-ip-info').innerHTML = `
-                    <p><strong>IP地址:</strong> ${currentVisitor.ip}</p>
-                    <p><strong>位置:</strong> ${currentVisitor.city}, ${currentVisitor.region}, ${currentVisitor.country}</p>
-                    <p><strong>ISP:</strong> ${currentVisitor.isp}</p>
-                    <p><strong>時間:</strong> ${new Date(currentVisitor.timestamp).toLocaleString()}</p>
-                    <p><strong>瀏覽器:</strong> ${getBrowserInfo(currentVisitor.userAgent)}</p>
-                    <p><strong>來源:</strong> ${currentVisitor.referrer === 'Direct' ? '直接訪問' : currentVisitor.referrer}</p>
+                    <p><strong>IP地址:</strong> ${visitorInfo.ip}</p>
+                    <p><strong>位置:</strong> ${visitorInfo.city}, ${visitorInfo.region}, ${visitorInfo.country}</p>
+                    <p><strong>ISP:</strong> ${visitorInfo.isp}</p>
+                    <p><strong>瀏覽器:</strong> ${getBrowserInfo(visitorInfo.userAgent)}</p>
+                    <p><strong>來源:</strong> ${visitorInfo.referrer === 'Direct' ? '直接訪問' : visitorInfo.referrer}</p>
                 `;
                 
+                // 檢查Firebase中是否已有此IP的記錄
+                const ipQuery = await visitorsRef.orderByChild('ip').equalTo(visitorInfo.ip).once('value');
+                const isNewVisitor = !ipQuery.exists();
+                
+                // 在訪問者日誌中添加一條記錄
+                const newVisitRef = visitorsRef.push();
+                await newVisitRef.set(visitorInfo);
+                
+                // 顯示訪客狀態
+                const statusClass = isNewVisitor ? 'status-new' : 'status-returning';
+                const visitorStatus = isNewVisitor ? '新訪客' : '回訪者';
                 document.getElementById('visit-status').innerHTML = `
                     <p>訪客狀態: <span class="status-badge ${statusClass}">${visitorStatus}</span></p>
                 `;
-                
-                // 將當前訪問添加到日誌
-                addVisitorToLog(currentVisitor, isNewVisitor);
                 
             } catch (error) {
                 console.error('Error fetching IP information:', error);
@@ -393,52 +288,56 @@
             return `${browser} / ${os}`;
         }
         
-        // 將訪問者添加到日誌
-        function addVisitorToLog(visitor, isNew) {
-            // 創建一個副本並添加標誌
-            const visitorWithStatus = {
-                ...visitor,
-                isNewVisitor: isNew
-            };
-            
-            // 添加到日誌
-            visitorsLog.unshift(visitorWithStatus);
-            
-            // 限制日誌大小，保留最近100條記錄
-            if (visitorsLog.length > 100) {
-                visitorsLog = visitorsLog.slice(0, 100);
-            }
-            
-            // 更新UI和保存數據
-            displayVisitorsLog();
-            updateStats();
-            saveData();
+        // 從Firebase加載訪問者數據
+        function loadVisitorsData() {
+            visitorsRef.orderByChild('timestamp').limitToLast(100).once('value')
+                .then(snapshot => {
+                    const visitorsData = [];
+                    snapshot.forEach(childSnapshot => {
+                        const visitor = childSnapshot.val();
+                        visitor.key = childSnapshot.key;
+                        visitorsData.push(visitor);
+                    });
+                    
+                    // 按時間戳倒序排列訪問記錄
+                    visitorsData.sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    displayVisitorsLog(visitorsData);
+                    updateStats(visitorsData);
+                })
+                .catch(error => {
+                    console.error('Error loading visitors data:', error);
+                    document.getElementById('visitors-log').innerHTML = `
+                        <p>載入數據時出錯。請檢查您的Firebase配置和連接。</p>
+                        <p>錯誤: ${error.message}</p>
+                    `;
+                });
         }
         
         // 顯示訪問者日誌
-        function displayVisitorsLog() {
+        function displayVisitorsLog(visitorsData) {
             const visitorsLogElement = document.getElementById('visitors-log');
             
-            if (visitorsLog.length === 0) {
+            if (!visitorsData || visitorsData.length === 0) {
                 visitorsLogElement.innerHTML = '<p>尚無訪問記錄</p>';
                 return;
             }
             
             let logHTML = '';
-            visitorsLog.forEach((visitor, index) => {
-                const statusBadge = visitor.isNewVisitor 
-                    ? '<span class="status-badge status-new">新訪客</span>' 
-                    : '<span class="status-badge status-returning">回訪者</span>';
+            visitorsData.forEach((visitor, index) => {
+                const timestamp = new Date(visitor.timestamp).toLocaleString();
                 
                 logHTML += `
                     <div class="visitor-item">
-                        <strong>${index + 1}. IP:</strong> ${visitor.ip} ${statusBadge}
+                        <strong>${index + 1}. IP:</strong> ${visitor.ip}
                         <br>
-                        <strong>位置:</strong> ${visitor.city}, ${visitor.country}
+                        <strong>位置:</strong> ${visitor.city || 'Unknown'}, ${visitor.country || 'Unknown'}
                         <br>
-                        <strong>時間:</strong> ${new Date(visitor.timestamp).toLocaleString()}
+                        <strong>時間:</strong> ${timestamp}
                         <br>
                         <strong>設備:</strong> ${getBrowserInfo(visitor.userAgent)}
+                        <br>
+                        <strong>來源:</strong> ${visitor.referrer === 'Direct' ? '直接訪問' : visitor.referrer}
                     </div>
                 `;
             });
@@ -447,181 +346,47 @@
         }
         
         // 更新統計數據
-        function updateStats() {
+        function updateStats(visitorsData) {
+            if (!visitorsData) return;
+            
             // 計算總訪問次數
-            const totalVisits = visitorsLog.length;
+            const totalVisits = visitorsData.length;
             
             // 計算獨立訪客數
-            const uniqueIPs = new Set(visitorsLog.map(visitor => visitor.ip));
+            const uniqueIPs = new Set();
+            visitorsData.forEach(visitor => uniqueIPs.add(visitor.ip));
             const uniqueVisitors = uniqueIPs.size;
             
             // 計算今天的訪問次數
-            const today = new Date().toDateString();
-            const todayVisits = visitorsLog.filter(visitor => {
-                return new Date(visitor.timestamp).toDateString() === today;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayTimestamp = today.getTime();
+            
+            const todayVisits = visitorsData.filter(visitor => {
+                return visitor.timestamp >= todayTimestamp;
             }).length;
             
             // 更新UI
             document.getElementById('total-visits').textContent = totalVisits;
             document.getElementById('unique-visitors').textContent = uniqueVisitors;
             document.getElementById('today-visits').textContent = todayVisits;
-            
-            // 更新詳細統計
-            let statsHTML = '<h3>訪問者國家分布</h3>';
-            
-            // 計算國家分布
-            const countryCounts = {};
-            visitorsLog.forEach(visitor => {
-                const country = visitor.country || 'Unknown';
-                countryCounts[country] = (countryCounts[country] || 0) + 1;
-            });
-            
-            // 排序國家分布
-            const sortedCountries = Object.entries(countryCounts)
-                .sort((a, b) => b[1] - a[1]);
-            
-            // 顯示國家分布
-            statsHTML += '<ul>';
-            sortedCountries.forEach(([country, count]) => {
-                const percentage = Math.round((count / totalVisits) * 100);
-                statsHTML += `<li><strong>${country}:</strong> ${count} 訪問 (${percentage}%)</li>`;
-            });
-            statsHTML += '</ul>';
-            
-            document.getElementById('stats-details').innerHTML = statsHTML;
         }
         
-        // 點擊追蹤
-        function trackClick(event) {
-            // 獲取點擊元素的信息
-            const target = event.target;
-            const elementType = target.tagName.toLowerCase();
-            const elementId = target.id || '無ID';
-            const elementClass = target.className || '無類別';
-            const elementText = target.textContent.trim().substring(0, 30) || '無文本';
-            
-            // 獲取點擊的坐標
-            const x = event.clientX;
-            const y = event.clientY;
-            
-            // 獲取頁面尺寸
-            const pageWidth = document.documentElement.clientWidth;
-            const pageHeight = document.documentElement.clientHeight;
-            
-            // 計算相對坐標（百分比）
-            const relativeX = Math.round((x / pageWidth) * 100);
-            const relativeY = Math.round((y / pageHeight) * 100);
-            
-            // 創建點擊記錄
-            const clickInfo = {
-                ip: currentVisitor.ip || 'Unknown',
-                element: elementType,
-                id: elementId,
-                class: elementClass,
-                text: elementText,
-                coordinates: {
-                    x: x,
-                    y: y,
-                    relativeX: relativeX,
-                    relativeY: relativeY
-                },
-                timestamp: new Date().toISOString()
-            };
-            
-            // 添加到日誌
-            clickLog.unshift(clickInfo);
-            
-            // 限制日誌大小
-            if (clickLog.length > 50) {
-                clickLog = clickLog.slice(0, 50);
-            }
-            
-            // 更新UI和保存數據
-            updateClickLog();
-            saveData();
-        }
-        
-        // 更新點擊記錄顯示
-        function updateClickLog() {
-            const clickLogElement = document.getElementById('click-log');
-            
-            if (clickLog.length === 0) {
-                clickLogElement.innerHTML = '<p>尚無點擊記錄</p>';
-                return;
-            }
-            
-            let logHTML = '';
-            clickLog.forEach((click, index) => {
-                logHTML += `
-                    <div class="click-item">
-                        <strong>${index + 1}. 元素:</strong> ${click.element} 
-                        ${click.id !== '無ID' ? `(ID: ${click.id})` : ''}
-                        ${click.text !== '無文本' ? `- "${click.text}"` : ''}
-                        <br>
-                        <strong>坐標:</strong> X: ${click.coordinates.x}, Y: ${click.coordinates.y} 
-                        (${click.coordinates.relativeX}%, ${click.coordinates.relativeY}%)
-                        <br>
-                        <strong>時間:</strong> ${new Date(click.timestamp).toLocaleString()}
-                    </div>
-                `;
-            });
-            
-            clickLogElement.innerHTML = logHTML;
-        }
-        
-        // 清除訪問記錄
-        function clearVisitsLog() {
-            if (confirm('確定要清除所有訪問記錄嗎？此操作無法撤銷。')) {
-                visitorsLog = [];
-                displayVisitorsLog();
-                updateStats();
-                saveData();
-            }
-        }
-        
-        // 清除點擊記錄
-        function clearClickLog() {
-            if (confirm('確定要清除所有點擊記錄嗎？此操作無法撤銷。')) {
-                clickLog = [];
-                updateClickLog();
-                saveData();
-            }
-        }
-        
-        // 導出數據
-        function exportData() {
-            try {
-                const data = {
-                    visitorsLog: visitorsLog,
-                    clickLog: clickLog,
-                    exportDate: new Date().toISOString(),
-                    stats: {
-                        totalVisits: visitorsLog.length,
-                        uniqueVisitors: new Set(visitorsLog.map(visitor => visitor.ip)).size,
-                    }
-                };
-                
-                // 創建數據URL
-                const dataStr = JSON.stringify(data, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const dataUrl = URL.createObjectURL(dataBlob);
-                
-                // 創建下載鏈接
-                const downloadLink = document.createElement('a');
-                downloadLink.href = dataUrl;
-                downloadLink.download = `visitor-tracking-data-${new Date().toISOString().slice(0, 10)}.json`;
-                
-                // 模擬點擊
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                
-                // 釋放URL
-                URL.revokeObjectURL(dataUrl);
-                
-            } catch (error) {
-                console.error('Error exporting data:', error);
-                alert('導出數據時出錯: ' + error.message);
+        // 清除所有數據
+        function clearAllData() {
+            if (confirm('確定要清除所有訪問記錄嗎？此操作無法撤銷！')) {
+                visitorsRef.remove()
+                    .then(() => {
+                        alert('所有數據已清除！');
+                        document.getElementById('visitors-log').innerHTML = '<p>尚無訪問記錄</p>';
+                        document.getElementById('total-visits').textContent = '0';
+                        document.getElementById('unique-visitors').textContent = '0';
+                        document.getElementById('today-visits').textContent = '0';
+                    })
+                    .catch(error => {
+                        console.error('Error clearing data:', error);
+                        alert('清除數據時出錯: ' + error.message);
+                    });
             }
         }
     </script>
