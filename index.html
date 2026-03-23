@@ -4,391 +4,340 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>訪問者追蹤系統 - Firebase版</title>
-    <!-- Firebase SDK -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: #f5f5f5;
-        }
-        header {
-            background-color: #4a76a8;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-        @media (min-width: 768px) {
-            .container {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        .card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        h1, h2 {
-            margin-top: 0;
-        }
-        #current-ip-info {
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-        #visitors-log {
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .visitor-item {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .visitor-item:last-child {
-            border-bottom: none;
-        }
-        button {
-            background-color: #4a76a8;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #3a5a78;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-        .status-new {
-            background-color: #28a745;
-            color: white;
-        }
-        .status-returning {
-            background-color: #17a2b8;
-            color: white;
-        }
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .stat-box {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 10px;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4a76a8;
-            margin: 5px 0;
-        }
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-        }
-        #map-container {
-            height: 300px;
-            margin-top: 20px;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-    </style>
 </head>
-<body>
-    <header>
-        <h1>訪問者追蹤系統</h1>
-        <p>使用Firebase記錄所有訪問者的IP信息</p>
-    </header>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-blue-600">訪問者追蹤系統</h1>
+            <p class="text-gray-600 mt-2">使用Firebase記錄所有訪問者的IP信息</p>
+        </header>
 
-    <div class="container">
-        <div class="card">
-            <h2>當前訪問者資訊</h2>
-            <div id="current-ip-info">正在獲取您的IP資訊...</div>
-            <div id="visit-status"></div>
-        </div>
-
-        <div class="card">
-            <h2>訪問者統計</h2>
-            <div class="stats-container">
-                <div class="stat-box">
-                    <div class="stat-label">總訪問次數</div>
-                    <div class="stat-value" id="total-visits">0</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">獨立訪客</div>
-                    <div class="stat-value" id="unique-visitors">0</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">今日訪問</div>
-                    <div class="stat-value" id="today-visits">0</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 當前訪問者信息 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">當前訪問者資訊</h2>
+                <div id="current-visitor" class="text-gray-700">
+                    <p>正在獲取您的IP資訊...</p>
                 </div>
             </div>
-            <button id="refresh-data">刷新數據</button>
-            <button id="clear-data">清除數據</button>
-        </div>
-    </div>
 
-    <div class="card">
-        <h2>所有訪問者記錄</h2>
-        <div id="visitors-log">
-            <p>載入訪問記錄中...</p>
+            <!-- 訪問者統計 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">訪問者統計</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-blue-600">總訪問次數</p>
+                        <p id="total-visits" class="text-2xl font-bold">0</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <p class="text-sm text-green-600">獨立訪客</p>
+                        <p id="unique-visitors" class="text-2xl font-bold">0</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="text-sm text-purple-600">今日訪問</p>
+                        <p id="today-visits" class="text-2xl font-bold">0</p>
+                    </div>
+                </div>
+                <div class="mt-4 flex space-x-3">
+                    <button id="refresh-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">刷新數據</button>
+                    <button id="clear-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">清除數據</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 所有訪問者記錄 -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">所有訪問者記錄</h2>
+            <div id="visitors-log" class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700">
+                            <th class="py-2 px-4 border-b text-left">訪問時間</th>
+                            <th class="py-2 px-4 border-b text-left">IP地址</th>
+                            <th class="py-2 px-4 border-b text-left">位置</th>
+                            <th class="py-2 px-4 border-b text-left">裝置</th>
+                            <th class="py-2 px-4 border-b text-left">瀏覽器</th>
+                        </tr>
+                    </thead>
+                    <tbody id="visitors-table">
+                        <tr>
+                            <td colspan="5" class="py-4 px-4 text-center text-gray-500">載入訪問記錄中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="error-message" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-lg"></div>
         </div>
     </div>
 
     <script>
-        // Firebase配置 - 請替換為您自己的配置
+        // Firebase 配置
         const firebaseConfig = {
             apiKey: "AIzaSyBCqFqL-dZ9SyVDaSopSiuPkPb3RLeVc5A",
             authDomain: "iptrackwebsite.firebaseapp.com",
+            databaseURL: "https://iptrackwebsite-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "iptrackwebsite",
             storageBucket: "iptrackwebsite.firebasestorage.app",
             messagingSenderId: "755918103831",
-            appId: "1:755918103831:web:5b94cc74f4fbfc808f8352",
-            databaseURL: "https://iptrackwebsite-default-rtdb.asia-southeast1.firebasedatabase.app"
+            appId: "1:755918103831:web:5b94cc74f4fbfc808f8352"
         };
 
-        // 初始化Firebase
+        // 初始化 Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const visitorsRef = database.ref('visitors');
-        
-        // 當頁面加載時執行
-        document.addEventListener('DOMContentLoaded', async function() {
-            // 獲取當前訪問者的IP信息
-            await getCurrentVisitorInfo();
-            
-            // 載入所有訪問者數據
-            loadVisitorsData();
-            
-            // 為按鈕添加事件監聽器
-            document.getElementById('refresh-data').addEventListener('click', loadVisitorsData);
-            document.getElementById('clear-data').addEventListener('click', clearAllData);
+
+        // DOM 元素
+        const currentVisitorEl = document.getElementById('current-visitor');
+        const totalVisitsEl = document.getElementById('total-visits');
+        const uniqueVisitorsEl = document.getElementById('unique-visitors');
+        const todayVisitsEl = document.getElementById('today-visits');
+        const visitorsTableEl = document.getElementById('visitors-table');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const errorMessageEl = document.getElementById('error-message');
+
+        // 獲取今日日期
+        const today = new Date().toISOString().slice(0, 10);
+
+        // 檢查Firebase連接
+        database.ref('.info/connected').on('value', function(snap) {
+            if (snap.val() === true) {
+                console.log("已連接到 Firebase");
+            } else {
+                console.log("與 Firebase 斷開連接");
+                showError("無法連接到 Firebase 數據庫，請檢查網絡連接和配置。");
+            }
         });
-        
+
         // 獲取當前訪問者的IP信息
         async function getCurrentVisitorInfo() {
             try {
-                // 使用ipify API獲取IP信息
                 const response = await fetch('https://api.ipify.org?format=json');
-                const data = await response.json();
-                
+                const ipData = await response.json();
+                const ip = ipData.ip;
+
                 // 獲取更詳細的IP信息
-                const geoResponse = await fetch(`https://ipapi.co/${data.ip}/json/`);
+                const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
                 const geoData = await geoResponse.json();
-                
-                const visitorInfo = {
-                    ip: data.ip,
-                    city: geoData.city || 'Unknown',
-                    region: geoData.region || 'Unknown',
-                    country: geoData.country_name || 'Unknown',
-                    isp: geoData.org || 'Unknown',
+
+                const visitorData = {
+                    ip: ip,
+                    location: `${geoData.city || '未知'}, ${geoData.country_name || '未知'}`,
+                    browser: getBrowserInfo(),
+                    device: getDeviceInfo(),
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    userAgent: navigator.userAgent,
-                    language: navigator.language || 'Unknown',
-                    screenSize: `${window.screen.width}x${window.screen.height}`,
-                    referrer: document.referrer || 'Direct',
-                    latitude: geoData.latitude,
-                    longitude: geoData.longitude
+                    date: today
                 };
-                
-                // 更新UI顯示當前訪問者信息
-                document.getElementById('current-ip-info').innerHTML = `
-                    <p><strong>IP地址:</strong> ${visitorInfo.ip}</p>
-                    <p><strong>位置:</strong> ${visitorInfo.city}, ${visitorInfo.region}, ${visitorInfo.country}</p>
-                    <p><strong>ISP:</strong> ${visitorInfo.isp}</p>
-                    <p><strong>瀏覽器:</strong> ${getBrowserInfo(visitorInfo.userAgent)}</p>
-                    <p><strong>來源:</strong> ${visitorInfo.referrer === 'Direct' ? '直接訪問' : visitorInfo.referrer}</p>
+
+                // 顯示當前訪問者信息
+                currentVisitorEl.innerHTML = `
+                    <p><strong>IP地址:</strong> ${ip}</p>
+                    <p><strong>位置:</strong> ${visitorData.location}</p>
+                    <p><strong>裝置:</strong> ${visitorData.device}</p>
+                    <p><strong>瀏覽器:</strong> ${visitorData.browser}</p>
+                    <p><strong>訪問時間:</strong> ${new Date().toLocaleString()}</p>
                 `;
-                
-                // 檢查Firebase中是否已有此IP的記錄
-                const ipQuery = await visitorsRef.orderByChild('ip').equalTo(visitorInfo.ip).once('value');
-                const isNewVisitor = !ipQuery.exists();
-                
-                // 在訪問者日誌中添加一條記錄
-                const newVisitRef = visitorsRef.push();
-                await newVisitRef.set(visitorInfo);
-                
-                // 顯示訪客狀態
-                const statusClass = isNewVisitor ? 'status-new' : 'status-returning';
-                const visitorStatus = isNewVisitor ? '新訪客' : '回訪者';
-                document.getElementById('visit-status').innerHTML = `
-                    <p>訪客狀態: <span class="status-badge ${statusClass}">${visitorStatus}</span></p>
-                `;
-                
+
+                // 將訪問者信息保存到 Firebase
+                saveVisitorData(visitorData);
+
+                return visitorData;
             } catch (error) {
-                console.error('Error fetching IP information:', error);
-                document.getElementById('current-ip-info').innerHTML = `
-                    <p>無法獲取IP資訊。請檢查您的網絡連接或稍後再試。</p>
-                    <p>錯誤: ${error.message}</p>
-                `;
+                console.error("獲取IP信息失敗:", error);
+                currentVisitorEl.innerHTML = `<p class="text-red-500">獲取IP信息失敗: ${error.message}</p>`;
+                showError(`獲取IP信息失敗: ${error.message}`);
+                return null;
             }
         }
-        
-        // 從用戶代理字符串提取瀏覽器信息
-        function getBrowserInfo(userAgent) {
-            let browser = 'Unknown';
+
+        // 保存訪問者數據到 Firebase
+        function saveVisitorData(visitorData) {
+            // 創建一個新的訪問記錄
+            const newVisitRef = database.ref('visits').push();
             
-            if (userAgent.includes('Firefox')) {
-                browser = 'Firefox';
-            } else if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) {
-                browser = 'Chrome';
-            } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
-                browser = 'Safari';
-            } else if (userAgent.includes('Edg')) {
-                browser = 'Edge';
-            } else if (userAgent.includes('MSIE') || userAgent.includes('Trident/')) {
-                browser = 'Internet Explorer';
-            }
+            // 獲取獨立訪客參照
+            const visitorRef = database.ref('visitors').child(visitorData.ip.replace(/\./g, '_'));
             
-            // 提取操作系統
-            let os = 'Unknown';
-            if (userAgent.includes('Windows')) {
-                os = 'Windows';
-            } else if (userAgent.includes('Mac')) {
-                os = 'MacOS';
-            } else if (userAgent.includes('Linux')) {
-                os = 'Linux';
-            } else if (userAgent.includes('Android')) {
-                os = 'Android';
-            } else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
-                os = 'iOS';
-            }
-            
-            return `${browser} / ${os}`;
-        }
-        
-        // 從Firebase加載訪問者數據
-        function loadVisitorsData() {
-            visitorsRef.orderByChild('timestamp').limitToLast(100).once('value')
-                .then(snapshot => {
-                    const visitorsData = [];
-                    snapshot.forEach(childSnapshot => {
-                        const visitor = childSnapshot.val();
-                        visitor.key = childSnapshot.key;
-                        visitorsData.push(visitor);
+            // 保存訪問記錄
+            newVisitRef.set(visitorData)
+                .then(() => {
+                    console.log("訪問記錄保存成功");
+                    
+                    // 更新獨立訪客記錄
+                    visitorRef.once('value', snapshot => {
+                        if (!snapshot.exists()) {
+                            // 新訪客
+                            visitorRef.set({
+                                firstVisit: firebase.database.ServerValue.TIMESTAMP,
+                                lastVisit: firebase.database.ServerValue.TIMESTAMP,
+                                visits: 1
+                            });
+                        } else {
+                            // 老訪客
+                            visitorRef.update({
+                                lastVisit: firebase.database.ServerValue.TIMESTAMP,
+                                visits: snapshot.val().visits + 1
+                            });
+                        }
                     });
-                    
-                    // 按時間戳倒序排列訪問記錄
-                    visitorsData.sort((a, b) => b.timestamp - a.timestamp);
-                    
-                    displayVisitorsLog(visitorsData);
-                    updateStats(visitorsData);
+
+                    // 更新訪問計數器
+                    updateVisitCounters();
                 })
                 .catch(error => {
-                    console.error('Error loading visitors data:', error);
-                    document.getElementById('visitors-log').innerHTML = `
-                        <p>載入數據時出錯。請檢查您的Firebase配置和連接。</p>
-                        <p>錯誤: ${error.message}</p>
-                    `;
+                    console.error("保存訪問記錄失敗:", error);
+                    showError(`保存訪問記錄失敗: ${error.message}`);
                 });
         }
-        
-        // 顯示訪問者日誌
-        function displayVisitorsLog(visitorsData) {
-            const visitorsLogElement = document.getElementById('visitors-log');
-            
-            if (!visitorsData || visitorsData.length === 0) {
-                visitorsLogElement.innerHTML = '<p>尚無訪問記錄</p>';
-                return;
+
+        // 獲取瀏覽器信息
+        function getBrowserInfo() {
+            const ua = navigator.userAgent;
+            let browser = "未知";
+
+            if (ua.indexOf("Firefox") > -1) {
+                browser = "Firefox";
+            } else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) {
+                browser = "Opera";
+            } else if (ua.indexOf("Edge") > -1) {
+                browser = "Edge";
+            } else if (ua.indexOf("Chrome") > -1) {
+                browser = "Chrome";
+            } else if (ua.indexOf("Safari") > -1) {
+                browser = "Safari";
+            } else if (ua.indexOf("MSIE") > -1 || ua.indexOf("Trident") > -1) {
+                browser = "Internet Explorer";
             }
-            
-            let logHTML = '';
-            visitorsData.forEach((visitor, index) => {
-                const timestamp = new Date(visitor.timestamp).toLocaleString();
-                
-                logHTML += `
-                    <div class="visitor-item">
-                        <strong>${index + 1}. IP:</strong> ${visitor.ip}
-                        <br>
-                        <strong>位置:</strong> ${visitor.city || 'Unknown'}, ${visitor.country || 'Unknown'}
-                        <br>
-                        <strong>時間:</strong> ${timestamp}
-                        <br>
-                        <strong>設備:</strong> ${getBrowserInfo(visitor.userAgent)}
-                        <br>
-                        <strong>來源:</strong> ${visitor.referrer === 'Direct' ? '直接訪問' : visitor.referrer}
-                    </div>
-                `;
-            });
-            
-            visitorsLogElement.innerHTML = logHTML;
+
+            return browser;
         }
-        
-        // 更新統計數據
-        function updateStats(visitorsData) {
-            if (!visitorsData) return;
-            
-            // 計算總訪問次數
-            const totalVisits = visitorsData.length;
-            
-            // 計算獨立訪客數
-            const uniqueIPs = new Set();
-            visitorsData.forEach(visitor => uniqueIPs.add(visitor.ip));
-            const uniqueVisitors = uniqueIPs.size;
-            
-            // 計算今天的訪問次數
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayTimestamp = today.getTime();
-            
-            const todayVisits = visitorsData.filter(visitor => {
-                return visitor.timestamp >= todayTimestamp;
-            }).length;
-            
-            // 更新UI
-            document.getElementById('total-visits').textContent = totalVisits;
-            document.getElementById('unique-visitors').textContent = uniqueVisitors;
-            document.getElementById('today-visits').textContent = todayVisits;
+
+        // 獲取設備信息
+        function getDeviceInfo() {
+            const ua = navigator.userAgent;
+            let device = "桌面";
+
+            if (/Android/i.test(ua)) {
+                device = "Android";
+            } else if (/iPhone|iPad|iPod/i.test(ua)) {
+                device = "iOS";
+            } else if (/Windows Phone/i.test(ua)) {
+                device = "Windows Phone";
+            }
+
+            return device;
         }
-        
-        // 清除所有數據
-        function clearAllData() {
+
+        // 更新訪問計數器
+        function updateVisitCounters() {
+            // 獲取總訪問次數
+            database.ref('visits').once('value')
+                .then(snapshot => {
+                    const totalVisits = snapshot.numChildren();
+                    totalVisitsEl.textContent = totalVisits;
+                });
+
+            // 獲取獨立訪客數
+            database.ref('visitors').once('value')
+                .then(snapshot => {
+                    const uniqueVisitors = snapshot.numChildren();
+                    uniqueVisitorsEl.textContent = uniqueVisitors;
+                });
+
+            // 獲取今日訪問次數
+            database.ref('visits').orderByChild('date').equalTo(today).once('value')
+                .then(snapshot => {
+                    const todayVisits = snapshot.numChildren();
+                    todayVisitsEl.textContent = todayVisits;
+                });
+        }
+
+        // 加載訪問記錄
+        function loadVisitorLogs() {
+            database.ref('visits').orderByChild('timestamp').limitToLast(100).once('value')
+                .then(snapshot => {
+                    if (!snapshot.exists()) {
+                        visitorsTableEl.innerHTML = `<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">沒有訪問記錄</td></tr>`;
+                        return;
+                    }
+
+                    let html = '';
+                    // 按照時間倒序顯示
+                    const visits = [];
+                    snapshot.forEach(childSnapshot => {
+                        visits.push({ key: childSnapshot.key, data: childSnapshot.val() });
+                    });
+
+                    visits.reverse().forEach(visit => {
+                        const data = visit.data;
+                        const date = new Date(data.timestamp).toLocaleString();
+
+                        html += `
+                            <tr class="hover:bg-gray-50">
+                                <td class="py-2 px-4 border-b">${date}</td>
+                                <td class="py-2 px-4 border-b">${data.ip}</td>
+                                <td class="py-2 px-4 border-b">${data.location}</td>
+                                <td class="py-2 px-4 border-b">${data.device}</td>
+                                <td class="py-2 px-4 border-b">${data.browser}</td>
+                            </tr>
+                        `;
+                    });
+
+                    visitorsTableEl.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error("加載訪問記錄失敗:", error);
+                    visitorsTableEl.innerHTML = `<tr><td colspan="5" class="py-4 px-4 text-center text-red-500">加載訪問記錄失敗: ${error.message}</td></tr>`;
+                    showError(`加載訪問記錄失敗: ${error.message}`);
+                });
+        }
+
+        // 顯示錯誤消息
+        function showError(message) {
+            errorMessageEl.textContent = message;
+            errorMessageEl.classList.remove('hidden');
+            setTimeout(() => {
+                errorMessageEl.classList.add('hidden');
+            }, 5000);
+        }
+
+        // 刷新按鈕點擊事件
+        refreshBtn.addEventListener('click', () => {
+            getCurrentVisitorInfo();
+            updateVisitCounters();
+            loadVisitorLogs();
+        });
+
+        // 清除數據按鈕點擊事件
+        clearBtn.addEventListener('click', () => {
             if (confirm('確定要清除所有訪問記錄嗎？此操作無法撤銷！')) {
-                visitorsRef.remove()
+                database.ref('visits').remove()
                     .then(() => {
-                        alert('所有數據已清除！');
-                        document.getElementById('visitors-log').innerHTML = '<p>尚無訪問記錄</p>';
-                        document.getElementById('total-visits').textContent = '0';
-                        document.getElementById('unique-visitors').textContent = '0';
-                        document.getElementById('today-visits').textContent = '0';
+                        database.ref('visitors').remove()
+                            .then(() => {
+                                alert('所有訪問記錄已清除！');
+                                totalVisitsEl.textContent = '0';
+                                uniqueVisitorsEl.textContent = '0';
+                                todayVisitsEl.textContent = '0';
+                                visitorsTableEl.innerHTML = `<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">沒有訪問記錄</td></tr>`;
+                            });
                     })
                     .catch(error => {
-                        console.error('Error clearing data:', error);
-                        alert('清除數據時出錯: ' + error.message);
+                        console.error("清除數據失敗:", error);
+                        showError(`清除數據失敗: ${error.message}`);
                     });
             }
-        }
+        });
+
+        // 頁面加載時執行
+        window.addEventListener('load', () => {
+            getCurrentVisitorInfo();
+            updateVisitCounters();
+            loadVisitorLogs();
+        });
     </script>
 </body>
 </html>
